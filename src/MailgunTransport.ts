@@ -1,4 +1,5 @@
 import {request} from 'https';
+import createHttpError from 'http-errors';
 import FormData from 'form-data';
 
 import type {SubmitOptions} from 'form-data';
@@ -130,11 +131,16 @@ export class MailgunTransport implements Transport {
 
         res.on('end', () => {
           let answer: any = Buffer.concat(chunks).toString();
-
+          try {
+            // We expect mailgun API to return a JSON object with a 'message' property
+            answer = JSON.parse(answer);
+          } catch (err) {
+            // In some error cases, we will receive a plaintext response. eg. Forbidden, 404 page not found - we can continue with the string
+          }
           if (res.statusCode === 200) {
             resolve(answer);
           } else {
-            reject(answer);
+            reject(createHttpError(res.statusCode, answer));
           }
         });
 
